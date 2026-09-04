@@ -1,0 +1,15 @@
+name: PR Signals
+
+# Posts a Teams alert for every PR with the impact signals detected in the
+# diff vs. what was declared in the description's checklist, and flags PRs
+# not targeting `development`. The actual logic lives in DajuLabs/.github
+# (reusable workflow) — this file just calls it. Does NOT comment on the PR.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  call-pr-signals:
+    uses: DajuLabs/.github/.github/workflows/pr-signals-reusable.yml@main
+    secrets: inherit
