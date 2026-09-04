@@ -86,7 +86,18 @@ post_teams_card() {
         ( .[1:] | map({ type: "TextBlock", text: ., wrap: true, spacing: "small" }) )
       )
     }')"
-  curl -sf -H "Content-Type: application/json" -d "$card" "$webhook" >/dev/null
+
+  local response_file status
+  response_file="$(mktemp)"
+  status="$(curl -s -o "$response_file" -w '%{http_code}' -H "Content-Type: application/json" -d "$card" "$webhook")"
+
+  if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+    echo "Teams webhook call failed (HTTP ${status}):" >&2
+    cat "$response_file" >&2
+    rm -f "$response_file"
+    return 1
+  fi
+  rm -f "$response_file"
 }
 
 # ---------------------------------------------------------------------------
