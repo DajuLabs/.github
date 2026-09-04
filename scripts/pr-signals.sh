@@ -99,7 +99,7 @@ detect_signals() {
 
   local key
   for key in "${SIGNAL_KEYS[@]}"; do
-    if echo "$diff" | grep -qEi "$(signal_pattern "$key")"; then
+    if grep -qEi "$(signal_pattern "$key")" <<< "$diff"; then
       echo "$key"
     fi
   done
@@ -108,7 +108,7 @@ detect_signals() {
   # top-level service directory also counts as multideploy, even if it
   # didn't match the compose/k8s filename pattern above.
   local touched_services
-  touched_services="$(echo "$diff" | grep -E '^\+\+\+ b/' | sed -E 's#^\+\+\+ b/([^/]+)/.*#\1#' | sort -u | wc -l)"
+  touched_services="$(grep -E '^\+\+\+ b/' <<< "$diff" | sed -E 's#^\+\+\+ b/([^/]+)/.*#\1#' | sort -u | wc -l)"
   if [ "$touched_services" -gt 1 ]; then
     echo "multideploy"
   fi
@@ -122,7 +122,7 @@ declared_signals() {
   local body="$1"
   local key
   for key in "${SIGNAL_KEYS[@]}"; do
-    if echo "$body" | grep -qiE "^\s*-\s*\[x\].*<!--\s*signal:${key}\s*-->"; then
+    if grep -qiE "^\s*-\s*\[x\].*<!--\s*signal:${key}\s*-->" <<< "$body"; then
       echo "$key"
     fi
   done
@@ -147,15 +147,15 @@ build_comment() {
   local key
   for key in "${SIGNAL_KEYS[@]}"; do
     local d="—" c="—"
-    echo "$detected" | grep -qx "$key" && d="$(signal_emoji "$key") yes"
-    echo "$declared" | grep -qx "$key" && c="$(signal_emoji "$key") yes"
+    grep -qx "$key" <<< "$detected" && d="$(signal_emoji "$key") yes"
+    grep -qx "$key" <<< "$declared" && c="$(signal_emoji "$key") yes"
     echo "| $(signal_label "$key") | $d | $c |"
   done
 
   echo
   local mismatch=0
   for key in "${SIGNAL_KEYS[@]}"; do
-    if echo "$detected" | grep -qx "$key" && ! echo "$declared" | grep -qx "$key"; then
+    if grep -qx "$key" <<< "$detected" && ! grep -qx "$key" <<< "$declared"; then
       echo "⚠️ Diff touches **$(signal_label "$key")** but the box isn't checked — please update the description or confirm it's a false positive."
       mismatch=1
     fi
@@ -242,7 +242,7 @@ cmd_digest() {
     detected="$(detect_signals "$repo" "$pr")"
     local key
     for key in "${SIGNAL_KEYS[@]}"; do
-      echo "$detected" | grep -qx "$key" && emojis="${emojis}$(signal_emoji "$key")"
+      grep -qx "$key" <<< "$detected" && emojis="${emojis}$(signal_emoji "$key")"
     done
     base="$(gh pr view "$pr" --repo "$repo" --json baseRefName -q '.baseRefName' 2>/dev/null || echo "?")"
     [ "$base" != "$EXPECTED_BASE" ] && base_flag=" ⚠️base:${base}"
@@ -282,7 +282,7 @@ cmd_alert() {
   declared="$(declared_signals "$body")"
   local key
   for key in "${SIGNAL_KEYS[@]}"; do
-    echo "$detected" | grep -qx "$key" && emojis="${emojis}$(signal_emoji "$key")"
+    grep -qx "$key" <<< "$detected" && emojis="${emojis}$(signal_emoji "$key")"
   done
 
   local lines=()
@@ -292,7 +292,7 @@ cmd_alert() {
   lines+=("Signals detected: ${emojis:-none}")
 
   for key in "${SIGNAL_KEYS[@]}"; do
-    if echo "$detected" | grep -qx "$key" && ! echo "$declared" | grep -qx "$key"; then
+    if grep -qx "$key" <<< "$detected" && ! grep -qx "$key" <<< "$declared"; then
       lines+=("⚠️ $(signal_label "$key") — not checked in the description")
     fi
   done
